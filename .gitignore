@@ -1,5 +1,6 @@
-build
-
+build/
+cpp_build/
+out/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
