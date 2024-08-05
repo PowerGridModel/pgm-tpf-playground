@@ -23,6 +23,10 @@ using Dict = std::unordered_map<std::string, Float>;
 #define NaN std::nan("")
 #define Inf std::numeric_limits<Float>::infinity()
 constexpr Float M_PI = std::numbers::pi_v<Float>;
+#define CONST_POWER 0
+#define CONST_CURRENT 1
+#define CONST_IMPEDANCE 2
+#define BASE_POWER 1e6
 
 using IDx = int64_t;
 struct IDx2 {
@@ -44,9 +48,17 @@ struct IDx4
 };
 
 struct PgmArray {
-    Eigen::MatrixXd data;
-    Dict columns;
+	Eigen::MatrixXd data;
+	Dict columns;
 };
+
+std::ostream& operator<<(std::ostream& os, const PgmArray& pgmArray) {
+	os << "Data:\n" << pgmArray.data << "\nColumns:\n";
+	for (const auto& [key, value] : pgmArray.columns) {
+		os << key << ": " << value << "\n";
+	}
+	return os;
+}
 
 using PgmData = std::unordered_map<std::string, PgmArray>;
 using PgmDataset = std::unordered_map<std::string, PgmData>;

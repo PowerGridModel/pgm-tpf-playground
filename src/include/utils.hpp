@@ -1,3 +1,5 @@
+#pragma once
+
 #include "./common.hpp"
 
 NAMESPACE_BEGIN
@@ -36,7 +38,7 @@ Dict const cable_param_pp = {
     {"max_i_ka", cable_param.at("i_n") * 1e-3}
 };
 
-PgmArray initialize_array(const std::string& /*type*/, const std::string& /*name*/, int rows, int cols = 0) {
+PgmArray initialize_array(int rows, int cols = 0) {
     PgmArray array;
     array.data = Eigen::MatrixXd::Zero(rows, cols);
     return array;
@@ -64,7 +66,7 @@ PgmDataset generate_fictional_grid(
     PgmData pgm_data;
 
     // Node
-    pgm_data["node"] = initialize_array("input", "node", n_node, 2);
+    pgm_data["node"] = initialize_array(n_node, 2);
     pgm_data["node"].data.col(0) = Eigen::VectorXd::LinSpaced(n_node, 0, n_node - 1);
     pgm_data["node"].data.col(1).setConstant(u_rated);
 
@@ -78,7 +80,7 @@ PgmDataset generate_fictional_grid(
     from_node_feeder.head(n_feeder).setZero();
     Eigen::VectorXd length = Eigen::VectorXd::NullaryExpr(n_line, [&]() { return dist_length(rng); });
 
-    pgm_data["line"] = initialize_array("input", "line", n_line, 6);
+    pgm_data["line"] = initialize_array(n_line, 6);
     pgm_data["line"].data.col(0) = Eigen::VectorXd::LinSpaced(n_line, n_node, n_node + n_line - 1);
     pgm_data["line"].data.col(1) = from_node_feeder.cast<Float>();
     pgm_data["line"].data.col(2) = to_node_feeder.cast<Float>();
@@ -96,7 +98,7 @@ PgmDataset generate_fictional_grid(
 
     // Load
     int n_load = n_node - 1;
-    pgm_data["sym_load"] = initialize_array("input", "sym_load", n_load, 6);
+    pgm_data["sym_load"] = initialize_array(n_load, 6);
     pgm_data["sym_load"].data.col(0) = Eigen::VectorXd::LinSpaced(n_load, n_node + n_line, n_node + n_line + n_load - 1);
     pgm_data["sym_load"].data.col(1) = pgm_data["node"].data.col(0).tail(n_load);
     pgm_data["sym_load"].data.col(2).setConstant(1);
@@ -106,7 +108,7 @@ PgmDataset generate_fictional_grid(
 
     // Source
     int source_id = n_node + n_line + n_load;
-    pgm_data["source"] = initialize_array("input", "source", 1, 7);
+    pgm_data["source"] = initialize_array(1, 7);
     pgm_data["source"].data(0, 0) = source_id;
     pgm_data["source"].data(0, 1) = source_node;
     pgm_data["source"].data(0, 2) = 1;
@@ -117,14 +119,14 @@ PgmDataset generate_fictional_grid(
 
     // Generate time series
     Eigen::MatrixXd scaling = Eigen::MatrixXd::NullaryExpr(n_step, n_load, [&]() { return dist_scaling(rng); });
-    PgmArray sym_load_profile = initialize_array("update", "sym_load", n_step, n_load * 2);
+    PgmArray sym_load_profile = initialize_array(n_step, n_load * 2);
     sym_load_profile.data.leftCols(n_load) = pgm_data["sym_load"].data.col(0).transpose().replicate(n_step, 1);
     sym_load_profile.data.rightCols(n_load) = pgm_data["sym_load"].data.col(4).transpose().replicate(n_step, 1).cwiseProduct(scaling);
     sym_load_profile.data.rightCols(n_load) = pgm_data["sym_load"].data.col(5).transpose().replicate(n_step, 1).cwiseProduct(scaling);
 
     return PgmDataset {
         {"pgm_data", pgm_data},
-        {"pgm_update_dataset", {{"sym_load", sym_load_profile}}}
+        {"pgm_update_data", {{"sym_load", sym_load_profile}}}
     };
 }
 

@@ -2,9 +2,26 @@
 #include <utils.hpp>
 
 int main() {
-    std::vector<std::string> names = {"PGM", "TPF", "Hackathon", "2024"};
-    for (const auto& name : names) {
-        std::cout << name << std::endl;
+    auto const dataset = pgm_tpf_hackathon::generate_fictional_grid(3, 5, 0.1, 1.0, 1000, 500, 0.95, 10, 0.8, 1.2);
+    auto const pgm_data = dataset.at("pgm_data");
+    auto const update_data = dataset.at("pgm_update_data");
+
+    // Accessing elements from pgm_data
+    try {
+        auto some_value = pgm_data.at("source");
+        std::cout << "Value: \n" << some_value << std::endl;
+    } catch (const std::out_of_range& e) {
+        std::cerr << "Key not found: " << e.what() << std::endl;
     }
+
+    // Accessing elements from update_data
+    try {
+        auto another_value = update_data.at("sym_load");
+        std::cout << "Value: \n" << another_value << std::endl;
+    } catch (const std::out_of_range& e) {
+        std::cerr << "Key not found: " << e.what() << std::endl;
+    }
+
+
     return 0;
 }
