@@ -1,0 +1,31 @@
+cmake_minimum_required (VERSION 3.23)
+
+project (PGM_TPF_Hackathon_2024)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+include(GNUInstallDirs)
+
+find_package(Eigen3 CONFIG REQUIRED)
+find_package(Boost REQUIRED)
+
+set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
+set(INCLUDE_DIR ${SRC_DIR}/include)
+
+file(GLOB_RECURSE SOURCES ${SRC_DIR}/*.cpp)
+
+include_directories(${INCLUDE_DIR})
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen Boost::Boost)
