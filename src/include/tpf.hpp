@@ -7,99 +7,92 @@ NAMESPACE_BEGIN
 
 // Minimal TPF impl ==============================
 
-void set_load_pu(std::vector<std::complex<double>> &load_pu,
-                 const std::vector<double> &p_array,
-                 const std::vector<double> &q_array) {
+void set_load_pu(VectorComplex& load_pu, VectorScalar const& p_array,
+                 VectorScalar const& q_array) {
     std::transform(p_array.begin(), p_array.end(), q_array.begin(),
-                   load_pu.begin(), [](double p, double q) {
-                       return std::complex<double>(p, q) / BASE_POWER;
+                   load_pu.begin(), [](Float p, Float q) {
+                       return Complex(p, q) / BASE_POWER;
                    });
 }
 
-std::vector<std::complex<double>> get_load_pu(
-    const std::vector<double> &p_specified,
-    const std::vector<double> &q_specified) {
-    std::vector<std::complex<double>> load_pu(p_specified.size());
+VectorComplex get_load_pu(VectorScalar const& p_specified,
+                          VectorScalar const& q_specified) {
+    VectorComplex load_pu(p_specified.size());
     set_load_pu(load_pu, p_specified, q_specified);
     return load_pu;
 }
 
-void set_rhs_impl(std::vector<std::vector<std::complex<double>>> &rhs,
-                  const std::vector<std::complex<double>> &load_pu,
-                  const std::vector<int> &load_type,
-                  const std::vector<int> &load_node,
-                  const std::vector<std::vector<std::complex<double>>> &u,
-                  const std::vector<std::complex<double>> &i_ref) {
-    for (auto &row : rhs) {
-        std::fill(row.begin(), row.end(), std::complex<double>(0.0, 0.0));
+void set_rhs_impl(TensorComplex& rhs, VectorComplex const& load_pu,
+                  VectorInt const& load_type, VectorInt const& load_node,
+                  TensorComplex const& u, VectorComplex const& i_ref) {
+    for (auto& row : rhs) {
+        std::fill(row.begin(), row.end(), Complex(0.0, 0.0));
     }
 
-    for (size_t i = 0; i < load_type.size(); ++i) {
-        int node_i = load_node[i];
-        int type_i = load_type[i];
+    for (Int i = 0; i < static_cast<Int>(load_type.size()); ++i) {
+        Int node_i = load_node[i];
+        Int type_i = load_type[i];
         if (type_i == CONST_POWER) {
-            for (size_t j = 0; j < rhs.size(); ++j) {
+            for (Int j = 0; j < static_cast<Int>(rhs.size()); ++j) {
                 rhs[j][node_i] -= std::conj(load_pu[i] / u[j][node_i]);
             }
         } else if (type_i == CONST_CURRENT) {
-            for (size_t j = 0; j < rhs.size(); ++j) {
+            for (Int j = 0; j < static_cast<Int>(rhs.size()); ++j) {
                 rhs[j][node_i] -= std::conj(
                     load_pu[i] * std::abs(u[j][node_i]) / u[j][node_i]);
             }
         } else if (type_i == CONST_IMPEDANCE) {
-            for (size_t j = 0; j < rhs.size(); ++j) {
+            for (Int j = 0; j < static_cast<Int>(rhs.size()); ++j) {
                 rhs[j][node_i] -= std::conj(load_pu[i]) * u[j][node_i];
             }
         }
     }
 
-    for (size_t j = 0; j < rhs.size(); ++j) {
+    for (Int j = 0; j < static_cast<Int>(rhs.size(); ++j) {
         rhs[j].back() += i_ref[j];
     }
 }
 
-void solve_rhs_inplace_impl(
-    const std::vector<int> &indptr_l, const std::vector<int> &indices_l,
-    const std::vector<std::complex<double>> &data_l,
-    const std::vector<int> &indptr_u, const std::vector<int> &indices_u,
-    const std::vector<std::complex<double>> &data_u,
-    std::vector<std::vector<std::complex<double>>> &rhs) {
-    size_t size = rhs[0].size();
+void solve_rhs_inplace_impl(VectorInt const& indptr_l,
+                            VectorInt const& indices_l,
+                            VectorComplex const& data_l,
+                            VectorInt const& indptr_u,
+                            VectorInt const& indices_u, VectorComplex& data_u,
+                            TensorComplex& rhs) {
+    Int size = static_cast<Int>(rhs[0].size());
     // forward substitution
-    for (size_t i = 0; i < size; ++i) {
-        for (int index_j = indptr_l[i]; index_j < indptr_l[i + 1] - 1;
+    for (Int i = 0; i < size; ++i) {
+        for (Int index_j = indptr_l[i]; index_j < indptr_l[i + 1] - 1;
              ++index_j) {
-            int j = indices_l[index_j];
-            for (auto &row : rhs) {
+            Int j = indices_l[index_j];
+            for (auto& row : rhs) {
                 row[i] -= data_l[index_j] * row[j];
             }
         }
     }
     // backward substitution
-    for (int i = size - 1; i >= 0; --i) {
-        for (int index_j = indptr_u[i + 1] - 1; index_j > indptr_u[i];
+    for (Int i = size - 1; i >= 0; --i) {
+        for (Int index_j = indptr_u[i + 1] - 1; index_j > indptr_u[i];
              --index_j) {
-            int j = indices_u[index_j];
-            for (auto &row : rhs) {
+            Int j = indices_u[index_j];
+            for (auto& row : rhs) {
                 row[i] -= data_u[index_j] * row[j];
             }
         }
-        int index_diag = indptr_u[i];
-        for (auto &row : rhs) {
+        Int index_diag = indptr_u[i];
+        for (auto& row : rhs) {
             row[i] /= data_u[index_diag];
         }
     }
 }
 
-double iterate_and_compare_impl(
-    std::vector<std::vector<std::complex<double>>> &u,
-    const std::vector<std::vector<std::complex<double>>> &rhs) {
-    size_t size = u[0].size();
-    double max_diff2 = 0.0;
-    for (size_t i = 0; i < size; ++i) {
-        for (size_t j = 0; j < u.size(); ++j) {
-            std::complex<double> diff2 = rhs[j][i] - u[j][i];
-            double diff2_val = std::norm(diff2);
+Float iterate_and_compare_impl(TensorComplex& u, TensorComplex const& rhs) {
+    Int size = static_cast<Int>(u[0].size());
+    Float max_diff2 = 0.0;
+    for (Int i = 0; i < size; ++i) {
+        for (Int j = 0; j < static_cast<Int>(u.size()); ++j) {
+            Complex diff2 = rhs[j][i] - u[j][i];
+            Float diff2_val = std::norm(diff2);
             if (diff2_val > max_diff2) {
                 max_diff2 = diff2_val;
             }

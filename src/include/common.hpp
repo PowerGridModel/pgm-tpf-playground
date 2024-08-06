@@ -18,6 +18,11 @@ NAMESPACE_BEGIN
 
 using Float = double;
 using Dict = std::unordered_map<std::string, Float>;
+using Int = int64_t;
+using VectorInt = std::vector<Int>;
+using VectorScalar = std::vector<Float>;
+using VectorComplex = std::vector<std::complex<Float>>;
+using TensorComplex = std::vector<VectorComplex>;
 
 #define NaN std::nan("")
 #define Inf std::numeric_limits<Float>::infinity()
