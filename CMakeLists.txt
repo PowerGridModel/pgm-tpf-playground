@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Contributors to the Power Grid Model project <powergridmodel@lfenergy.org>
+#
+# SPDX-License-Identifier: MPL-2.0
+
 cmake_minimum_required (VERSION 3.23)
 
 project (PGM_TPF_Hackathon_2024)
@@ -18,7 +22,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 include(GNUInstallDirs)
 
 find_package(Eigen3 CONFIG REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system filesystem graph) 
 
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(INCLUDE_DIR ${SRC_DIR}/include)
@@ -28,7 +32,7 @@ file(GLOB_RECURSE SOURCES ${SRC_DIR}/main.cpp)
 include_directories(${INCLUDE_DIR})
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen Boost::system Boost::filesystem Boost::graph)
 
 if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
