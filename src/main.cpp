@@ -2,7 +2,8 @@
 #include <utils.hpp>
 
 int main() {
-    auto const dataset = pgm_tpf_hackathon::generate_fictional_grid(3, 5, 0.1, 1.0, 1000, 500, 0.95, 10, 0.8, 1.2);
+    auto const dataset = pgm_tpf_hackathon::generate_fictional_grid(
+        3, 5, 0.1, 1.0, 1000, 500, 0.95, 10, 0.8, 1.2);
     auto const pgm_data = dataset.at("pgm_data");
     auto const update_data = dataset.at("pgm_update_data");
 
@@ -10,7 +11,7 @@ int main() {
     try {
         auto some_value = pgm_data.at("source");
         std::cout << "Value: \n" << some_value << std::endl;
-    } catch (const std::out_of_range& e) {
+    } catch (const std::out_of_range &e) {
         std::cerr << "Key not found: " << e.what() << std::endl;
     }
 
@@ -18,10 +19,9 @@ int main() {
     try {
         auto another_value = update_data.at("sym_load");
         std::cout << "Value: \n" << another_value << std::endl;
-    } catch (const std::out_of_range& e) {
+    } catch (const std::out_of_range &e) {
         std::cerr << "Key not found: " << e.what() << std::endl;
     }
-
 
     return 0;
 }

@@ -1,16 +1,15 @@
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <string>
+#include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
+#include <iostream>
+#include <numbers>
 #include <numeric>
 #include <random>
+#include <string>
 #include <unordered_map>
-#include <numbers>
-
-#include <Eigen/Dense>
+#include <vector>
 
 #define NAMESPACE_BEGIN namespace pgm_tpf_hackathon {
 #define NAMESPACE_END }
@@ -30,34 +29,32 @@ constexpr Float M_PI = std::numbers::pi_v<Float>;
 
 using IDx = int64_t;
 struct IDx2 {
-	IDx x;
-	IDx y;
+    IDx x;
+    IDx y;
 };
-struct IDx3
-{
-	IDx x;
-	IDx y;
-	IDx z;
+struct IDx3 {
+    IDx x;
+    IDx y;
+    IDx z;
 };
-struct IDx4
-{
-	IDx w; // meh
-	IDx x;
-	IDx y;
-	IDx z;
+struct IDx4 {
+    IDx w;  // meh
+    IDx x;
+    IDx y;
+    IDx z;
 };
 
 struct PgmArray {
-	Eigen::MatrixXd data;
-	Dict columns;
+    Eigen::MatrixXd data;
+    Dict columns;
 };
 
-std::ostream& operator<<(std::ostream& os, const PgmArray& pgmArray) {
-	os << "Data:\n" << pgmArray.data << "\nColumns:\n";
-	for (const auto& [key, value] : pgmArray.columns) {
-		os << key << ": " << value << "\n";
-	}
-	return os;
+std::ostream &operator<<(std::ostream &os, const PgmArray &pgmArray) {
+    os << "Data:\n" << pgmArray.data << "\nColumns:\n";
+    for (const auto &[key, value] : pgmArray.columns) {
+        os << key << ": " << value << "\n";
+    }
+    return os;
 }
 
 using PgmData = std::unordered_map<std::string, PgmArray>;
