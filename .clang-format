@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: Contributors to the Power Grid Model project <powergridmodel@lfenergy.org>
+#
+# SPDX-License-Identifier: MPL-2.0
+
+Language: Cpp
+BasedOnStyle: LLVM
+ColumnLimit: 120
+IndentWidth: 4
+
+# New settings
+
+AlwaysBreakTemplateDeclarations: MultiLine
+PackConstructorInitializers: NextLine
+PointerAlignment: Left
