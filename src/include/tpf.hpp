@@ -54,6 +54,13 @@ void set_rhs(TensorComplex& rhs, VectorComplex const& load_pu, VectorInt const& 
 void solve_rhs_inplace(VectorInt const& indptr_l, VectorInt const& indices_l, VectorComplex const& data_l,
                        VectorInt const& indptr_u, VectorInt const& indices_u, VectorComplex const& data_u,
                        TensorComplex& rhs) {
+
+    // TODO directly use
+    // pay attention to the shape of rhs, maybe you need a transpose
+    // see https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html
+    // the solve step
+    // _solver.matrixL().solveInPlace(rhs);
+    // _solver.matrixU().solveInPlace(rhs);
     Int size = static_cast<IDx>(rhs[0].size());
 
     for (IDx i = 0; i < size; ++i) {
@@ -114,16 +121,12 @@ class TPF {
         SparsMatComplex y_matrix(_y_bus);
         y_matrix.makeCompressed();
 
-        Eigen::SimplicialLLT<SparsMatComplex> solver;
-        solver.analyzePattern(y_matrix);
-        solver.factorize(y_matrix);
+        _solver.analyzePattern(y_matrix);
+        _solver.factorize(y_matrix);
 
-        if (solver.info() != Eigen::Success) {
+        if (_solver.info() != Eigen::Success) {
             throw std::runtime_error("Matrix factorization failed!");
         }
-
-        _l_matrix = solver.matrixL();
-        _u_matrix = solver.matrixU();
     }
 
     void reorder_nodes(VectorInt const& reordered_node) {
@@ -231,8 +234,7 @@ class TPF {
     VectorInt _load_type;
 
     SparsMatComplex _y_bus;
-    SparsMatComplex _l_matrix;
-    SparsMatComplex _u_matrix;
+    Eigen::SparseLU<SparsMatComplex> _solver;
 };
 
 NAMESPACE_END
