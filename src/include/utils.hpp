@@ -30,9 +30,9 @@ Dict const cable_param_pp = {
     {"c_nf_per_km", cable_param.at("c1") * 1e9},
     {"r_ohm_per_km", cable_param.at("r1")},
     {"x_ohm_per_km", cable_param.at("x1")},
-    {"g_us_per_km", cable_param.at("tan1") * cable_param.at("c1") * 2 * M_PI* frequency * 1e6},
+    {"g_us_per_km", cable_param.at("tan1") * cable_param.at("c1") * 2 * pi* frequency * 1e6},
     {"c0_nf_per_km", cable_param.at("c0") * 1e9},
-    {"g0_us_per_km", cable_param.at("tan0") * cable_param.at("c0") * 2 * M_PI* frequency * 1e6},
+    {"g0_us_per_km", cable_param.at("tan0") * cable_param.at("c0") * 2 * pi* frequency * 1e6},
     {"max_i_ka", cable_param.at("i_n") * 1e-3}};
 
 PgmArray initialize_array(int rows, int cols = 0) {
@@ -60,9 +60,9 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
     // Line
     int n_line = n_node - 1;
     Eigen::VectorXi to_node_feeder = Eigen::VectorXi::LinSpaced(n_node_per_feeder, 1, n_node_per_feeder);
-    to_node_feeder = to_node_feeder.replicate(n_feeder, 1).reshaped();
+    to_node_feeder = to_node_feeder.replicate(n_feeder, 1).eval().reshaped();
     Eigen::VectorXi from_node_feeder = Eigen::VectorXi::LinSpaced(n_node_per_feeder - 1, 1, n_node_per_feeder - 1);
-    from_node_feeder = from_node_feeder.replicate(n_feeder, 1).reshaped();
+    from_node_feeder = from_node_feeder.replicate(n_feeder, 1).eval().reshaped();
     from_node_feeder.conservativeResize(n_feeder * n_node_per_feeder);
     from_node_feeder.head(n_feeder).setZero();
     Eigen::VectorXd length = Eigen::VectorXd::NullaryExpr(n_line, [&]() { return dist_length(rng); });

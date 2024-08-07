@@ -54,6 +54,13 @@ void set_rhs(TensorComplex& rhs, VectorComplex const& load_pu, VectorInt const& 
 void solve_rhs_inplace(VectorInt const& indptr_l, VectorInt const& indices_l, VectorComplex const& data_l,
                        VectorInt const& indptr_u, VectorInt const& indices_u, VectorComplex const& data_u,
                        TensorComplex& rhs) {
+
+    // TODO directly use
+    // pay attention to the shape of rhs, maybe you need a transpose
+    // see https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html
+    // the solve step
+    // _solver.matrixL().solveInPlace(rhs);
+    // _solver.matrixU().solveInPlace(rhs);
     Int size = static_cast<IDx>(rhs[0].size());
 
     for (IDx i = 0; i < size; ++i) {
@@ -111,19 +118,15 @@ class TPF {
 
   private:
     void factorize_matrix() {
-        SparsMatComplex y_matrix(_y_bus);
+        SparseMatComplex y_matrix(_y_bus);
         y_matrix.makeCompressed();
 
-        Eigen::SimplicialLLT<SparsMatComplex> solver;
-        solver.analyzePattern(y_matrix);
-        solver.factorize(y_matrix);
+        _solver.analyzePattern(y_matrix);
+        _solver.factorize(y_matrix);
 
-        if (solver.info() != Eigen::Success) {
+        if (_solver.info() != Eigen::Success) {
             throw std::runtime_error("Matrix factorization failed!");
         }
-
-        _l_matrix = solver.matrixL();
-        _u_matrix = solver.matrixU();
     }
 
     void reorder_nodes(VectorInt const& reordered_node) {
@@ -154,7 +157,7 @@ class TPF {
         }
         VectorComplex y_shunt(_n_line);
         for (Int i = 0; i < _n_line; ++i) {
-            y_shunt[i] = (0.5 * 2 * M_PI * _system_frequency) * _input_data.at("line").at("c1").data(i) *
+            y_shunt[i] = (0.5 * 2 * pi * _system_frequency) * _input_data.at("line").at("c1").data(i) *
                          Complex(0, 1 + _input_data.at("line").at("tan1").data(i));
         }
         VectorComplex all_y;
@@ -162,7 +165,7 @@ class TPF {
         all_y.insert(all_y.end(), y_shunt.begin(), y_shunt.end());
         all_y.insert(all_y.end(), y_shunt.begin(), y_shunt.end());
 
-        SparsMatComplex y_branch(_n_line * 3, _n_line * 3);
+        SparseMatComplex y_branch(_n_line * 3, _n_line * 3);
         for (Int i = 0; i < _n_line * 3; ++i) {
             y_branch.insert(i, i) = all_y[i] / _y_base;
         }
@@ -196,12 +199,12 @@ class TPF {
             incidence_j.push_back(i);
         }
 
-        SparsMatInt incidence_matrix_int(_n_node, _n_line * 3);
+        SparseMatInt incidence_matrix_int(_n_node, _n_line * 3);
         for (size_t i = 0; i < incidence_entry.size(); ++i) {
             incidence_matrix_int.insert(incidence_i[i], incidence_j[i]) = incidence_entry[i];
         }
 
-        SparsMatComplex incidence_matrix = incidence_matrix_int.cast<Complex>();
+        SparseMatComplex incidence_matrix = incidence_matrix_int.cast<Complex>();
         _y_bus = (incidence_matrix * y_branch * incidence_matrix.transpose()).eval();
     }
 
@@ -230,9 +233,8 @@ class TPF {
     VectorInt _load_node;
     VectorInt _load_type;
 
-    SparsMatComplex _y_bus;
-    SparsMatComplex _l_matrix;
-    SparsMatComplex _u_matrix;
+    SparseMatComplex _y_bus;
+    Eigen::SparseLU<SparseMatComplex> _solver;
 };
 
 NAMESPACE_END
