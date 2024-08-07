@@ -118,7 +118,7 @@ class TPF {
 
   private:
     void factorize_matrix() {
-        SparsMatComplex y_matrix(_y_bus);
+        SparseMatComplex y_matrix(_y_bus);
         y_matrix.makeCompressed();
 
         _solver.analyzePattern(y_matrix);
@@ -165,7 +165,7 @@ class TPF {
         all_y.insert(all_y.end(), y_shunt.begin(), y_shunt.end());
         all_y.insert(all_y.end(), y_shunt.begin(), y_shunt.end());
 
-        SparsMatComplex y_branch(_n_line * 3, _n_line * 3);
+        SparseMatComplex y_branch(_n_line * 3, _n_line * 3);
         for (Int i = 0; i < _n_line * 3; ++i) {
             y_branch.insert(i, i) = all_y[i] / _y_base;
         }
@@ -199,12 +199,12 @@ class TPF {
             incidence_j.push_back(i);
         }
 
-        SparsMatInt incidence_matrix_int(_n_node, _n_line * 3);
+        SparseMatInt incidence_matrix_int(_n_node, _n_line * 3);
         for (size_t i = 0; i < incidence_entry.size(); ++i) {
             incidence_matrix_int.insert(incidence_i[i], incidence_j[i]) = incidence_entry[i];
         }
 
-        SparsMatComplex incidence_matrix = incidence_matrix_int.cast<Complex>();
+        SparseMatComplex incidence_matrix = incidence_matrix_int.cast<Complex>();
         _y_bus = (incidence_matrix * y_branch * incidence_matrix.transpose()).eval();
     }
 
@@ -233,8 +233,8 @@ class TPF {
     VectorInt _load_node;
     VectorInt _load_type;
 
-    SparsMatComplex _y_bus;
-    Eigen::SparseLU<SparsMatComplex> _solver;
+    SparseMatComplex _y_bus;
+    Eigen::SparseLU<SparseMatComplex> _solver;
 };
 
 NAMESPACE_END
