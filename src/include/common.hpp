@@ -42,9 +42,9 @@ using DenseMatInt = Eigen::Matrix<Int, Eigen::Dynamic, Eigen::Dynamic>;
 using DenseMatScalar = Eigen::Matrix<Float, Eigen::Dynamic, Eigen::Dynamic>;
 using DenseMatComplex = Eigen::Matrix<Complex, Eigen::Dynamic, Eigen::Dynamic>;
 
-using SparsMatInt = Eigen::SparseMatrix<Int>;
-using SparsMatScalar = Eigen::SparseMatrix<Float>;
-using SparsMatComplex = Eigen::SparseMatrix<Complex>;
+using SparseMatInt = Eigen::SparseMatrix<Int>;
+using SparseMatScalar = Eigen::SparseMatrix<Float>;
+using SparseMatComplex = Eigen::SparseMatrix<Complex>;
 
 constexpr Float NaN = std::numeric_limits<Float>::quiet_NaN();
 constexpr Float Inf = std::numeric_limits<Float>::infinity();
