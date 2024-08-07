@@ -60,9 +60,9 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
     // Line
     int n_line = n_node - 1;
     Eigen::VectorXi to_node_feeder = Eigen::VectorXi::LinSpaced(n_node_per_feeder, 1, n_node_per_feeder);
-    to_node_feeder = to_node_feeder.replicate(n_feeder, 1).reshaped();
+    to_node_feeder = to_node_feeder.replicate(n_feeder, 1).eval().reshaped();
     Eigen::VectorXi from_node_feeder = Eigen::VectorXi::LinSpaced(n_node_per_feeder - 1, 1, n_node_per_feeder - 1);
-    from_node_feeder = from_node_feeder.replicate(n_feeder, 1).reshaped();
+    from_node_feeder = from_node_feeder.replicate(n_feeder, 1).eval().reshaped();
     from_node_feeder.conservativeResize(n_feeder * n_node_per_feeder);
     from_node_feeder.head(n_feeder).setZero();
     Eigen::VectorXd length = Eigen::VectorXd::NullaryExpr(n_line, [&]() { return dist_length(rng); });
