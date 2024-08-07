@@ -154,7 +154,7 @@ class TPF {
         }
         VectorComplex y_shunt(_n_line);
         for (Int i = 0; i < _n_line; ++i) {
-            y_shunt[i] = (0.5 * 2 * M_PI * _system_frequency) * _input_data.at("line").at("c1").data(i) *
+            y_shunt[i] = (0.5 * 2 * pi * _system_frequency) * _input_data.at("line").at("c1").data(i) *
                          Complex(0, 1 + _input_data.at("line").at("tan1").data(i));
         }
         VectorComplex all_y;
