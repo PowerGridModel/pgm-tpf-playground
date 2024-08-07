@@ -30,9 +30,9 @@ Dict const cable_param_pp = {
     {"c_nf_per_km", cable_param.at("c1") * 1e9},
     {"r_ohm_per_km", cable_param.at("r1")},
     {"x_ohm_per_km", cable_param.at("x1")},
-    {"g_us_per_km", cable_param.at("tan1") * cable_param.at("c1") * 2 * M_PI* frequency * 1e6},
+    {"g_us_per_km", cable_param.at("tan1") * cable_param.at("c1") * 2 * pi* frequency * 1e6},
     {"c0_nf_per_km", cable_param.at("c0") * 1e9},
-    {"g0_us_per_km", cable_param.at("tan0") * cable_param.at("c0") * 2 * M_PI* frequency * 1e6},
+    {"g0_us_per_km", cable_param.at("tan0") * cable_param.at("c0") * 2 * pi* frequency * 1e6},
     {"max_i_ka", cable_param.at("i_n") * 1e-3}};
 
 PgmArray initialize_array(int rows, int cols = 0) {

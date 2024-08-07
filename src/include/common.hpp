@@ -48,7 +48,7 @@ using SparsMatComplex = Eigen::SparseMatrix<Complex>;
 
 constexpr Float NaN = std::numeric_limits<Float>::quiet_NaN();
 constexpr Float Inf = std::numeric_limits<Float>::infinity();
-#define M_PI std::numbers::pi_v<Float>
+constexpr Float pi = std::numbers::pi_v<Float>;
 constexpr Float BASE_POWER = 1e6;
 
 constexpr Int CONST_POWER = 0;
