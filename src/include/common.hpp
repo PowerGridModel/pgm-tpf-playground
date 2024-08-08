@@ -80,7 +80,7 @@ struct PgmArray {
 
 std::ostream& operator<<(std::ostream& os, const PgmArray& pgmArray) {
     os << "Data:\n" << pgmArray.data << "\nColumns:\n";
-    for (const auto& [key, value] : pgmArray.columns) {
+    for (auto const& [key, value] : pgmArray.columns) {
         os << key << ": " << value << "\n";
     }
     return os;
