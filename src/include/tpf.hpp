@@ -22,84 +22,34 @@ VectorComplex get_load_pu(VectorScalar const& p_specified, VectorScalar const& q
     return load_pu;
 }
 
-void set_rhs(TensorComplex& rhs, VectorComplex const& load_pu, VectorInt const& load_type, VectorInt const& load_node,
-             TensorComplex const& u, VectorComplex const& i_ref) {
-    for (auto& row : rhs) {
-        std::fill(row.begin(), row.end(), Complex(0.0, 0.0));
-    }
+void set_rhs(SparseMatComplex& rhs, VectorComplex const& load_pu, VectorInt const& load_type,
+             VectorInt const& load_node, SparseMatComplex const& u, Complex const& i_ref) {
+    DenseMatComplex u_dense = u;
+    DenseMatComplex rhs_dense = rhs;
+    rhs_dense.setZero();
 
     for (IDx i = 0; i < static_cast<IDx>(load_type.size()); ++i) {
         Int node_i = load_node[i];
         Int type_i = load_type[i];
         if (type_i == CONST_POWER) {
             for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
-                rhs[j][node_i] -= std::conj(load_pu[i] / u[j][node_i]);
+                rhs_dense(j, node_i) -= std::conj(load_pu[i] / u_dense(j, node_i));
             }
         } else if (type_i == CONST_CURRENT) {
             for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
-                rhs[j][node_i] -= std::conj(load_pu[i] * std::abs(u[j][node_i]) / u[j][node_i]);
+                rhs_dense(j, node_i) -= std::conj(load_pu[i] * std::abs(u_dense(j, node_i)) / u_dense(j, node_i));
             }
         } else if (type_i == CONST_IMPEDANCE) {
             for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
-                rhs[j][node_i] -= std::conj(load_pu[i]) * u[j][node_i];
+                rhs_dense(j, node_i) -= std::conj(load_pu[i]) * u_dense(j, node_i);
             }
         }
     }
 
-    for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
-        rhs[j].back() += i_ref[j];
+    for (IDx j = 0; j < rhs_dense.rows(); ++j) {
+        rhs_dense(j, rhs_dense.cols() - 1) += i_ref;
     }
-}
-
-void solve_rhs_inplace(VectorInt const& indptr_l, VectorInt const& indices_l, VectorComplex const& data_l,
-                       VectorInt const& indptr_u, VectorInt const& indices_u, VectorComplex const& data_u,
-                       TensorComplex& rhs) {
-
-    // TODO directly use
-    // pay attention to the shape of rhs, maybe you need a transpose
-    // see https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html
-    // the solve step
-    // _solver.matrixL().solveInPlace(rhs);
-    // _solver.matrixU().solveInPlace(rhs);
-    Int size = static_cast<IDx>(rhs[0].size());
-
-    for (IDx i = 0; i < size; ++i) {
-        for (IDx index_j = indptr_l[i]; index_j < indptr_l[i + 1] - 1; ++index_j) {
-            Int j = indices_l[index_j];
-            for (auto& row : rhs) {
-                row[i] -= data_l[index_j] * row[j];
-            }
-        }
-    }
-
-    for (Int i = size - 1; i >= 0; --i) {
-        for (Int index_j = indptr_u[i + 1] - 1; index_j > indptr_u[i]; --index_j) {
-            Int j = indices_u[index_j];
-            for (auto& row : rhs) {
-                row[i] -= data_u[index_j] * row[j];
-            }
-        }
-        Int index_diag = indptr_u[i];
-        for (auto& row : rhs) {
-            row[i] /= data_u[index_diag];
-        }
-    }
-}
-
-Float iterate_and_compare(TensorComplex& u, TensorComplex const& rhs) {
-    Int size = static_cast<Int>(u[0].size());
-    Float max_diff = 0.0;
-    for (Int i = 0; i < size; ++i) {
-        for (Int j = 0; j < static_cast<Int>(u.size()); ++j) {
-            Complex diff = rhs[j][i] - u[j][i];
-            Float diff_val = std::norm(diff);
-            if (diff_val > max_diff) {
-                max_diff = diff_val;
-            }
-            u[j][i] = rhs[j][i];
-        }
-    }
-    return max_diff;
+    rhs = rhs_dense.sparseView();
 }
 
 class TPF {
@@ -117,6 +67,43 @@ class TPF {
     }
 
   private:
+    void solve_rhs_inplace(SparseMatComplex& rhs) const {
+        // TODO directly use
+        // pay attention to the shape of rhs, maybe you need a transpose
+        // see https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html
+        DenseMatComplex rhs_dense = rhs;
+        DenseMatComplex rhs_dense_t = rhs_dense.transpose();
+
+        _solver.matrixL().solveInPlace(rhs_dense_t);
+        _solver.matrixU().solveInPlace(rhs_dense_t);
+
+        rhs_dense = rhs_dense_t.transpose();
+        rhs = rhs_dense.sparseView();
+    }
+
+    Float iterate_and_compare(SparseMatComplex& u, SparseMatComplex const& rhs) {
+        DenseMatComplex u_dense = u;
+        DenseMatComplex rhs_dense = rhs;
+
+        Int size = static_cast<Int>(u_dense.cols());
+        Float max_diff = 0.0;
+
+        for (Int i = 0; i < size; ++i) {
+            for (Int j = 0; j < static_cast<Int>(u_dense.rows()); ++j) {
+                std::complex<double> diff = rhs_dense(j, i) - u_dense(j, i);
+                Float diff_val = std::norm(diff); // should have been squared norm
+                if (diff_val > max_diff) {
+                    max_diff = diff_val;
+                }
+                u_dense(j, i) = rhs_dense(j, i);
+            }
+        }
+
+        u = u_dense.sparseView();
+
+        return max_diff;
+    }
+
     void factorize_matrix() {
         SparseMatComplex y_matrix(_y_bus);
         y_matrix.makeCompressed();
@@ -215,7 +202,21 @@ class TPF {
         return reordered;
     }
 
-    void pre_cache_calculation() {}
+    void pre_cache_calculation() {
+        if (_node_reordered_to_org.empty()) {
+            graph_reorder();
+        }
+        if (_y_bus.nonZeros() == 0) {
+            build_y_bus();
+        }
+        if (_solver.info() != Eigen::Success) {
+            factorize_matrix();
+        }
+        // u variable, flat start as u_ref
+        auto const& source_node_data = _input_data.at("source").at("data").data;
+        _u_ref = Complex(source_node_data(0, 0), 0.0);
+        _i_ref = _y_base * _u_ref;
+    }
 
     PgmDataset _input_data;
 
@@ -225,6 +226,9 @@ class TPF {
 
     Float _y_base;
     Float _system_frequency;
+
+    Complex _u_ref;
+    Complex _i_ref;
 
     VectorInt _node_reordered_to_org;
     VectorInt _node_org_to_reordered;

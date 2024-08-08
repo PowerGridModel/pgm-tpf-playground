@@ -26,14 +26,13 @@ std::string const cable_type = "630Al";
 Dict const cable_param = {{"r1", 0.063},   {"x1", 0.103},   {"c1", 0.5e-6}, {"c0", 0.3e-6},
                           {"tan1", 0.003}, {"tan0", 0.001}, {"i_n", NaN}};
 
-Dict const cable_param_pp = {
-    {"c_nf_per_km", cable_param.at("c1") * 1e9},
-    {"r_ohm_per_km", cable_param.at("r1")},
-    {"x_ohm_per_km", cable_param.at("x1")},
-    {"g_us_per_km", cable_param.at("tan1") * cable_param.at("c1") * 2 * pi* frequency * 1e6},
-    {"c0_nf_per_km", cable_param.at("c0") * 1e9},
-    {"g0_us_per_km", cable_param.at("tan0") * cable_param.at("c0") * 2 * pi* frequency * 1e6},
-    {"max_i_ka", cable_param.at("i_n") * 1e-3}};
+Dict const cable_param_pp = {{"c_nf_per_km", cable_param.at("c1") * 1e9},
+                             {"r_ohm_per_km", cable_param.at("r1")},
+                             {"x_ohm_per_km", cable_param.at("x1")},
+                             {"g_us_per_km", cable_param.at("tan1") * cable_param.at("c1") * 2 * pi* frequency * 1e6},
+                             {"c0_nf_per_km", cable_param.at("c0") * 1e9},
+                             {"g0_us_per_km", cable_param.at("tan0") * cable_param.at("c0") * 2 * pi* frequency * 1e6},
+                             {"max_i_ka", cable_param.at("i_n") * 1e-3}};
 
 PgmArray initialize_array(int rows, int cols = 0) {
     PgmArray array;
