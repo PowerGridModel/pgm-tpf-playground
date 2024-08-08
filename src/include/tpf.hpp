@@ -31,18 +31,28 @@ void set_rhs(SparseMatComplex& rhs, VectorComplex const& load_pu, VectorInt cons
     for (IDx i = 0; i < static_cast<IDx>(load_type.size()); ++i) {
         Int node_i = load_node[i];
         Int type_i = load_type[i];
-        if (type_i == CONST_POWER) {
+        switch (type_i) {
+        case CONST_POWER:
             for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
                 rhs_dense(j, node_i) -= std::conj(load_pu[i] / u_dense(j, node_i));
             }
-        } else if (type_i == CONST_CURRENT) {
+            break;
+
+        case CONST_CURRENT:
             for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
                 rhs_dense(j, node_i) -= std::conj(load_pu[i] * std::abs(u_dense(j, node_i)) / u_dense(j, node_i));
             }
-        } else if (type_i == CONST_IMPEDANCE) {
+            break;
+
+        case CONST_IMPEDANCE:
             for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
                 rhs_dense(j, node_i) -= std::conj(load_pu[i]) * u_dense(j, node_i);
             }
+            break;
+
+        default:
+            throw std::runtime_error("Unexpected type_i value: " + std::to_string(type_i));
+            break;
         }
     }
 
@@ -61,17 +71,56 @@ class TPF {
 
     ~TPF() = default;
 
-    PgmResultType calculate_power_flow(PgmBatchDataset const& /*update_data*/, Int /*max_iteration*/ = 20,
-                                       Float /*error_tolerance*/ = 1e-8) {
+    PgmResultType calculate_power_flow(PgmBatchDataset const& update_data, Int max_iteration = 20,
+                                       Float error_tolerance = 1e-8) {
+        pre_cache_calculation();
+
+        // ToDo: Data format defined in common needs reword
+        std::vector<PgmDataset> const load_profile = update_data.at("sym_load");
+        Int n_steps = static_cast<Int>(load_profile.size());
+        // PgmDataset const& pgm_dataset = load_profile[0];
+        // PgmData const& pgm_data = pgm_dataset.at("p_specified");
+        // PgmData const& p_specified_array = pgm_data.data.col(0);
+
+        // Initialize load_pu, u, and rhs
+        VectorComplex load_pu;
+        DenseMatComplex u_dense(n_steps, _n_node);
+        u_dense.setConstant(_u_ref);
+        SparseMatComplex u = u_dense.sparseView();
+        SparseMatComplex rhs(n_steps, _n_node);
+
+        // Iterate
+        for (Int iter = 0; iter < max_iteration; ++iter) {
+            set_rhs(rhs, load_pu, _load_type, _load_node, u, _i_ref);
+            solve_rhs_inplace(rhs);
+            Float max_diff = iterate_and_compare(u, rhs);
+            if (max_diff < error_tolerance * error_tolerance) {
+                break;
+            }
+            if (iter == max_iteration - 1) {
+                throw std::runtime_error("The power flow calculation does not converge! Max diff: " +
+                                         std::to_string(max_diff));
+            }
+        }
+
+        // Reorder back to original
+        DenseMatComplex u_reordered(n_steps, _n_node);
+        for (Int i = 0; i < n_steps; ++i) {
+            for (Int j = 0; j < _n_node; ++j) {
+                u_reordered.coeffRef(i, j) = u.coeff(i, _node_org_to_reordered[j]);
+            }
+        }
+
+        // ToDo: Data format defined in common needs reword
+        // PgmResultType result;
+        // result["node"]["u_pu"] = u_reordered;
+        // result["node"]["u_angle"] = u_reordered;
         return PgmResultType{};
     }
 
   private:
     // Matrix operations inside iterations ========================================
     void solve_rhs_inplace(SparseMatComplex& rhs) const {
-        // TODO directly use
-        // pay attention to the shape of rhs, maybe you need a transpose
-        // see https://eigen.tuxfamily.org/dox/group__TopicSparseSystems.html
         DenseMatComplex rhs_dense = rhs;
         DenseMatComplex rhs_dense_t = rhs_dense.transpose();
 
@@ -105,18 +154,6 @@ class TPF {
         return max_diff;
     }
 
-    void factorize_matrix() {
-        SparseMatComplex y_matrix(_y_bus);
-        y_matrix.makeCompressed();
-
-        _solver.analyzePattern(y_matrix);
-        _solver.factorize(y_matrix);
-
-        if (_solver.info() != Eigen::Success) {
-            throw std::runtime_error("Matrix factorization failed!");
-        }
-    }
-
     // graph ordering ==============================================================
     void reorder_nodes(VectorInt const& reordered_node) {
         if (static_cast<Int>(reordered_node.size()) != _n_node) {
@@ -147,7 +184,7 @@ class TPF {
     struct DfsOrderRecorder : public boost::default_dfs_visitor {
         DfsOrderRecorder(VectorInt& order) : order(order) {}
 
-        template <typename Vertex, typename Graph> void discover_vertex(Vertex u, const Graph& g) const {
+        template <typename Vertex, typename Graph> void discover_vertex(Vertex u, const Graph& /*g*/) const {
             order.push_back(u);
         }
 
@@ -158,8 +195,7 @@ class TPF {
         using namespace boost;
 
         typedef adjacency_list<vecS, vecS, undirectedS> Graph;
-        typedef graph_traits<Graph>::vertex_descriptor Vertex;
-
+        
         Graph g;
         for (Int k = 0; k < static_cast<Int>(connection_array.outerSize()); ++k) {
             for (SparseMatInt::InnerIterator it(connection_array, k); it; ++it) {
@@ -195,7 +231,19 @@ class TPF {
         reorder_nodes(reordered_node);
     }
 
-    // build matrix ===============================================================
+    // matrix factorizatio and construction =======================================
+    void factorize_matrix() {
+        SparseMatComplex y_matrix(_y_bus);
+        y_matrix.makeCompressed();
+
+        _solver.analyzePattern(y_matrix);
+        _solver.factorize(y_matrix);
+
+        if (_solver.info() != Eigen::Success) {
+            throw std::runtime_error("Matrix factorization failed!");
+        }
+    }
+
     void build_y_bus() {
         VectorComplex y_series(_n_line);
         for (Int i = 0; i < _n_line; ++i) {
