@@ -88,7 +88,7 @@ std::ostream& operator<<(std::ostream& os, const PgmArray& pgmArray) {
 
 using PgmData = std::unordered_map<std::string, PgmArray>;
 using PgmDataset = std::unordered_map<std::string, PgmData>;
-using PgmBatchDataset = std::unordered_map<std::string, std::vector<PgmData>>;
-using PgmResultType = std::unordered_map<std::string, TensorComplex>;
+using PgmBatchDataset = std::unordered_map<std::string, std::vector<PgmDataset>>;
+using PgmResultType = std::unordered_map<std::string, PgmData>;
 
 NAMESPACE_END
