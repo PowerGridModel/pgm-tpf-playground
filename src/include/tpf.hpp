@@ -67,6 +67,7 @@ class TPF {
     }
 
   private:
+    // Matrix operations inside iterations ========================================
     void solve_rhs_inplace(SparseMatComplex& rhs) const {
         // TODO directly use
         // pay attention to the shape of rhs, maybe you need a transpose
@@ -116,6 +117,7 @@ class TPF {
         }
     }
 
+    // graph ordering ==============================================================
     void reorder_nodes(VectorInt const& reordered_node) {
         if (static_cast<Int>(reordered_node.size()) != _n_node) {
             throw std::invalid_argument("The graph is not connected!");
@@ -134,8 +136,66 @@ class TPF {
         assert(_source_node == _n_node - 1);
     }
 
-    void graph_reorder() {} /* ToDo */
+    VectorInt reorder_vector(VectorInt const& vec) {
+        VectorInt reordered_vec(vec.size());
+        for (Int i = 0; i < static_cast<Int>(vec.size()); ++i) {
+            reordered_vec[i] = _node_org_to_reordered[vec[i]];
+        }
+        return reordered_vec;
+    }
 
+    struct DfsOrderRecorder : public boost::default_dfs_visitor {
+        DfsOrderRecorder(VectorInt& order) : order(order) {}
+
+        template <typename Vertex, typename Graph> void discover_vertex(Vertex u, const Graph& g) const {
+            order.push_back(u);
+        }
+
+        VectorInt& order;
+    };
+
+    VectorInt depth_first_order(SparseMatInt const& connection_array, Int start_node) {
+        using namespace boost;
+
+        typedef adjacency_list<vecS, vecS, undirectedS> Graph;
+        typedef graph_traits<Graph>::vertex_descriptor Vertex;
+
+        Graph g;
+        for (Int k = 0; k < static_cast<Int>(connection_array.outerSize()); ++k) {
+            for (SparseMatInt::InnerIterator it(connection_array, k); it; ++it) {
+                add_edge(it.row(), it.col(), g);
+            }
+        }
+
+        VectorInt dfs_order;
+        DfsOrderRecorder vis(dfs_order);
+        std::vector<default_color_type> color_map(num_vertices(g));
+        depth_first_search(g, visitor(vis).root_vertex(start_node).color_map(&color_map[0]));
+
+        return dfs_order;
+    }
+
+    void graph_reorder() {
+        VectorInt edge_i(_line_node_from);
+        edge_i.insert(edge_i.end(), _line_node_to.begin(), _line_node_to.end());
+
+        VectorInt edge_j(_line_node_to);
+        edge_j.insert(edge_j.end(), _line_node_from.begin(), _line_node_from.end());
+
+        SparseMatInt connection_array(_n_node, _n_node);
+        std::vector<Eigen::Triplet<Int>> tripletList;
+        tripletList.reserve(edge_i.size());
+        for (Int k = 0; k < static_cast<Int>(edge_i.size()); ++k) {
+            tripletList.emplace_back(edge_i[k], edge_j[k], Int(1));
+        }
+        connection_array.setFromTriplets(tripletList.begin(), tripletList.end());
+
+        VectorInt reordered_node = depth_first_order(connection_array, _source_node);
+
+        reorder_nodes(reordered_node);
+    }
+
+    // build matrix ===============================================================
     void build_y_bus() {
         VectorComplex y_series(_n_line);
         for (Int i = 0; i < _n_line; ++i) {
@@ -195,13 +255,7 @@ class TPF {
         _y_bus = (incidence_matrix * y_branch * incidence_matrix.transpose()).eval();
     }
 
-    VectorInt reorder_vector(VectorInt const& vec) const {
-        VectorInt reordered(vec.size());
-        std::transform(vec.begin(), vec.end(), reordered.begin(),
-                       [this](Int const node) { return _node_org_to_reordered[node]; });
-        return reordered;
-    }
-
+    // initialization =============================================================
     void pre_cache_calculation() {
         if (_node_reordered_to_org.empty()) {
             graph_reorder();
