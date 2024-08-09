@@ -106,14 +106,23 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
 
     // Generate time series
     Eigen::MatrixXd scaling = Eigen::MatrixXd::NullaryExpr(n_step, n_load, [&]() { return dist_scaling(rng); });
-    PgmArray sym_load_profile = initialize_array(n_step, n_load * 2);
-    sym_load_profile.data.leftCols(n_load) = pgm_data["sym_load"].data.col(0).transpose().replicate(n_step, 1);
-    sym_load_profile.data.rightCols(n_load) =
+
+    PgmArray sym_load_profile_id = initialize_array(n_step, n_load);
+    PgmArray sym_load_profile_p_specified = initialize_array(n_step, n_load);
+    PgmArray sym_load_profile_q_specified = initialize_array(n_step, n_load);
+
+    sym_load_profile_id.data = pgm_data["sym_load"].data.col(0).transpose().replicate(n_step, 1);
+    sym_load_profile_p_specified.data =
         pgm_data["sym_load"].data.col(4).transpose().replicate(n_step, 1).cwiseProduct(scaling);
-    sym_load_profile.data.rightCols(n_load) =
+    sym_load_profile_q_specified.data =
         pgm_data["sym_load"].data.col(5).transpose().replicate(n_step, 1).cwiseProduct(scaling);
 
-    return PgmDataset{{"pgm_data", pgm_data}, {"pgm_update_data", {{"sym_load", sym_load_profile}}}};
+    // "update" "sym_load" are omitted
+    PgmData pgm_update_dataset = {{{"id", sym_load_profile_id},
+                                   {"p_specified", sym_load_profile_p_specified},
+                                   {"q_specified", sym_load_profile_q_specified}}};
+
+    return PgmDataset{{"pgm_data", pgm_data}, {"pgm_update_data", pgm_update_dataset}};
 }
 
 NAMESPACE_END

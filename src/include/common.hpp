@@ -88,7 +88,8 @@ std::ostream& operator<<(std::ostream& os, const PgmArray& pgmArray) {
 
 using PgmData = std::unordered_map<std::string, PgmArray>;
 using PgmDataset = std::unordered_map<std::string, PgmData>;
-using PgmBatchDataset = std::unordered_map<std::string, std::vector<PgmDataset>>;
+using PgmBatchData = PgmDataset;
+using PgmBatchDataset = std::unordered_map<std::string, std::vector<PgmBatchData>>;
 using PgmResultType = std::unordered_map<std::string, PgmData>;
 
 NAMESPACE_END

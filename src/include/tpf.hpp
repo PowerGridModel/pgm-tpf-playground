@@ -195,7 +195,7 @@ class TPF {
         using namespace boost;
 
         typedef adjacency_list<vecS, vecS, undirectedS> Graph;
-        
+
         Graph g;
         for (Int k = 0; k < static_cast<Int>(connection_array.outerSize()); ++k) {
             for (SparseMatInt::InnerIterator it(connection_array, k); it; ++it) {
