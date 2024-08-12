@@ -32,5 +32,9 @@ int main() {
         std::cerr << "Key not found: " << e.what() << std::endl;
     }
 
+    pgm_tpf_hackathon::TPF tpf{pgm_data, 50.0};
+
+    auto const result = tpf.calculate_power_flow(update_data);
+
     return 0;
 }
