@@ -10,6 +10,15 @@ NAMESPACE_BEGIN
 
 // Fictional Grid Generator
 
+// Indices
+int const COL_R1 = 5;
+int const COL_X1 = 6;
+int const COL_C1 = 7;
+int const COL_C0 = 8;
+int const COL_TAN1 = 9;
+int const COL_TAN0 = 10;
+int const COL_I_N = 11;
+
 // Constants
 Float const u_rated = 10e3;
 Float const frequency = 50.0;
@@ -66,20 +75,20 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
     from_node_feeder.head(n_feeder).setZero();
     Eigen::VectorXd length = Eigen::VectorXd::NullaryExpr(n_line, [&]() { return dist_length(rng); });
 
-    pgm_data["line"] = initialize_array(n_line, 6);
+    pgm_data["line"] = initialize_array(n_line, 12);
     pgm_data["line"].data.col(0) = Eigen::VectorXd::LinSpaced(n_line, n_node, n_node + n_line - 1);
     pgm_data["line"].data.col(1) = from_node_feeder.cast<Float>();
     pgm_data["line"].data.col(2) = to_node_feeder.cast<Float>();
     pgm_data["line"].data.col(3).setConstant(1);
     pgm_data["line"].data.col(4).setConstant(1);
 
-    for (const auto& [attr_name, attr] : cable_param) {
-        if (attr_name == "i_n" || attr_name == "tan1" || attr_name == "tan0") {
-            pgm_data["line"].data.col(5).setConstant(attr);
-        } else {
-            pgm_data["line"].data.col(5) = Eigen::VectorXd::Constant(n_line, attr).cwiseProduct(length);
-        }
-    }
+    pgm_data["line"].data.col(COL_R1) = Eigen::VectorXd::Constant(n_line, cable_param.at("r1")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_X1) = Eigen::VectorXd::Constant(n_line, cable_param.at("x1")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_C1) = Eigen::VectorXd::Constant(n_line, cable_param.at("c1")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_C0) = Eigen::VectorXd::Constant(n_line, cable_param.at("c0")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_TAN1).setConstant(cable_param.at("tan1"));
+    pgm_data["line"].data.col(COL_TAN0).setConstant(cable_param.at("tan0"));
+    pgm_data["line"].data.col(COL_I_N).setConstant(cable_param.at("i_n"));
 
     // Load
     int n_load = n_node - 1;
