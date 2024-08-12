@@ -22,11 +22,19 @@ int main() {
 
     // Accessing elements from update_data
     try {
-        auto another_value = update_data.at("sym_load");
-        std::cout << "Value: \n" << another_value << std::endl;
+        auto another_value_id = update_data.at("id");
+        auto another_value_ps = update_data.at("p_specified");
+        auto another_value_qs = update_data.at("q_specified");
+        std::cout << "Value: \n" << another_value_id << std::endl;
+        std::cout << "Value: \n" << another_value_ps << std::endl;
+        std::cout << "Value: \n" << another_value_qs << std::endl;
     } catch (std::out_of_range const& e) {
         std::cerr << "Key not found: " << e.what() << std::endl;
     }
+
+    pgm_tpf_hackathon::TPF tpf{pgm_data, 50.0};
+
+    auto const result = tpf.calculate_power_flow(update_data);
 
     return 0;
 }

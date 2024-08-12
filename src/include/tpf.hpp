@@ -64,23 +64,20 @@ void set_rhs(SparseMatComplex& rhs, VectorComplex const& load_pu, VectorInt cons
 
 class TPF {
   public:
-    TPF(PgmDataset const& input_data, Float const system_frequency, Int const n_node, Int const n_line)
-        : _input_data(input_data), _n_node(n_node), _n_line(n_line), _system_frequency(system_frequency) {
+    TPF(PgmData const& input_data, Float const system_frequency)
+        : _input_data(input_data), _system_frequency(system_frequency) {
+        _n_node = static_cast<Int>(input_data.at("node").data.rows());
+        _n_line = static_cast<Int>(input_data.at("line").data.rows());
         _node_org_to_reordered.resize(_n_node, -1);
     }
 
     ~TPF() = default;
 
-    PgmResultType calculate_power_flow(PgmBatchDataset const& update_data, Int max_iteration = 20,
+    PgmResultType calculate_power_flow(PgmData const& update_data, Int max_iteration = 20,
                                        Float error_tolerance = 1e-8) {
         pre_cache_calculation();
 
-        // ToDo: Data format defined in common needs reword
-        std::vector<PgmDataset> const load_profile = update_data.at("sym_load");
-        Int n_steps = static_cast<Int>(load_profile.size());
-        // PgmDataset const& pgm_dataset = load_profile[0];
-        // PgmData const& pgm_data = pgm_dataset.at("p_specified");
-        // PgmData const& p_specified_array = pgm_data.data.col(0);
+        Int n_steps = static_cast<Int>(update_data.at("sym_load").data.rows());
 
         // Initialize load_pu, u, and rhs
         VectorComplex load_pu;
@@ -94,9 +91,12 @@ class TPF {
             set_rhs(rhs, load_pu, _load_type, _load_node, u, _i_ref);
             solve_rhs_inplace(rhs);
             Float max_diff = iterate_and_compare(u, rhs);
+
+            // Early out, 'converged'
             if (max_diff < error_tolerance * error_tolerance) {
                 break;
             }
+
             if (iter == max_iteration - 1) {
                 throw std::runtime_error("The power flow calculation does not converge! Max diff: " +
                                          std::to_string(max_diff));
@@ -104,18 +104,20 @@ class TPF {
         }
 
         // Reorder back to original
-        DenseMatComplex u_reordered(n_steps, _n_node);
+        DenseMatScalar u_pu(n_steps, _n_node);
+        DenseMatScalar u_angle(n_steps, _n_node);
         for (Int i = 0; i < n_steps; ++i) {
             for (Int j = 0; j < _n_node; ++j) {
-                u_reordered.coeffRef(i, j) = u.coeff(i, _node_org_to_reordered[j]);
+                Complex u_value = u.coeff(i, _node_org_to_reordered[j]);
+                u_pu.coeffRef(i, j) = std::abs(u_value);
+                u_angle.coeffRef(i, j) = std::arg(u_pu.coeff(i, j));
             }
         }
 
-        // ToDo: Data format defined in common needs reword
-        // PgmResultType result;
-        // result["node"]["u_pu"] = u_reordered;
-        // result["node"]["u_angle"] = u_reordered;
-        return PgmResultType{};
+        PgmResultType result;
+        result.at("node").at("u_pu").data = u_pu;
+        result.at("node").at("u_angle").data = u_angle;
+        return result;
     }
 
   private:
@@ -195,7 +197,7 @@ class TPF {
         using namespace boost;
 
         typedef adjacency_list<vecS, vecS, undirectedS> Graph;
-        
+
         Graph g;
         for (Int k = 0; k < static_cast<Int>(connection_array.outerSize()); ++k) {
             for (SparseMatInt::InnerIterator it(connection_array, k); it; ++it) {
@@ -247,13 +249,15 @@ class TPF {
     void build_y_bus() {
         VectorComplex y_series(_n_line);
         for (Int i = 0; i < _n_line; ++i) {
-            y_series[i] =
-                1.0 / Complex(_input_data.at("line").at("r1").data(i), _input_data.at("line").at("x1").data(i));
+            Float r1 = _input_data.at("line").data(i, COL_R1);
+            Float x1 = _input_data.at("line").data(i, COL_X1);
+            y_series[i] = 1.0 / Complex(r1, x1);
         }
         VectorComplex y_shunt(_n_line);
         for (Int i = 0; i < _n_line; ++i) {
-            y_shunt[i] = (0.5 * 2 * pi * _system_frequency) * _input_data.at("line").at("c1").data(i) *
-                         Complex(0, 1 + _input_data.at("line").at("tan1").data(i));
+            Float c1 = _input_data.at("line").data(i, COL_C1);
+            Float tan1 = _input_data.at("line").data(i, COL_TAN1);
+            y_shunt[i] = (0.5 * 2 * pi * _system_frequency) * c1 * Complex(0, 1 + tan1);
         }
         VectorComplex all_y;
         all_y.insert(all_y.end(), y_series.begin(), y_series.end());
@@ -315,12 +319,12 @@ class TPF {
             factorize_matrix();
         }
         // u variable, flat start as u_ref
-        auto const& source_node_data = _input_data.at("source").at("data").data;
+        auto const& source_node_data = _input_data.at("source").data;
         _u_ref = Complex(source_node_data(0, 0), 0.0);
         _i_ref = _y_base * _u_ref;
     }
 
-    PgmDataset _input_data;
+    PgmData _input_data;
 
     Int _n_node;
     Int _n_line;

@@ -10,6 +10,15 @@ NAMESPACE_BEGIN
 
 // Fictional Grid Generator
 
+// Indices
+int const COL_R1 = 5;
+int const COL_X1 = 6;
+int const COL_C1 = 7;
+int const COL_C0 = 8;
+int const COL_TAN1 = 9;
+int const COL_TAN0 = 10;
+int const COL_I_N = 11;
+
 // Constants
 Float const u_rated = 10e3;
 Float const frequency = 50.0;
@@ -66,20 +75,20 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
     from_node_feeder.head(n_feeder).setZero();
     Eigen::VectorXd length = Eigen::VectorXd::NullaryExpr(n_line, [&]() { return dist_length(rng); });
 
-    pgm_data["line"] = initialize_array(n_line, 6);
+    pgm_data["line"] = initialize_array(n_line, 12);
     pgm_data["line"].data.col(0) = Eigen::VectorXd::LinSpaced(n_line, n_node, n_node + n_line - 1);
     pgm_data["line"].data.col(1) = from_node_feeder.cast<Float>();
     pgm_data["line"].data.col(2) = to_node_feeder.cast<Float>();
     pgm_data["line"].data.col(3).setConstant(1);
     pgm_data["line"].data.col(4).setConstant(1);
 
-    for (const auto& [attr_name, attr] : cable_param) {
-        if (attr_name == "i_n" || attr_name == "tan1" || attr_name == "tan0") {
-            pgm_data["line"].data.col(5).setConstant(attr);
-        } else {
-            pgm_data["line"].data.col(5) = Eigen::VectorXd::Constant(n_line, attr).cwiseProduct(length);
-        }
-    }
+    pgm_data["line"].data.col(COL_R1) = Eigen::VectorXd::Constant(n_line, cable_param.at("r1")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_X1) = Eigen::VectorXd::Constant(n_line, cable_param.at("x1")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_C1) = Eigen::VectorXd::Constant(n_line, cable_param.at("c1")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_C0) = Eigen::VectorXd::Constant(n_line, cable_param.at("c0")).cwiseProduct(length);
+    pgm_data["line"].data.col(COL_TAN1).setConstant(cable_param.at("tan1"));
+    pgm_data["line"].data.col(COL_TAN0).setConstant(cable_param.at("tan0"));
+    pgm_data["line"].data.col(COL_I_N).setConstant(cable_param.at("i_n"));
 
     // Load
     int n_load = n_node - 1;
@@ -106,14 +115,23 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
 
     // Generate time series
     Eigen::MatrixXd scaling = Eigen::MatrixXd::NullaryExpr(n_step, n_load, [&]() { return dist_scaling(rng); });
-    PgmArray sym_load_profile = initialize_array(n_step, n_load * 2);
-    sym_load_profile.data.leftCols(n_load) = pgm_data["sym_load"].data.col(0).transpose().replicate(n_step, 1);
-    sym_load_profile.data.rightCols(n_load) =
+
+    PgmArray sym_load_profile_id = initialize_array(n_step, n_load);
+    PgmArray sym_load_profile_p_specified = initialize_array(n_step, n_load);
+    PgmArray sym_load_profile_q_specified = initialize_array(n_step, n_load);
+
+    sym_load_profile_id.data = pgm_data["sym_load"].data.col(0).transpose().replicate(n_step, 1);
+    sym_load_profile_p_specified.data =
         pgm_data["sym_load"].data.col(4).transpose().replicate(n_step, 1).cwiseProduct(scaling);
-    sym_load_profile.data.rightCols(n_load) =
+    sym_load_profile_q_specified.data =
         pgm_data["sym_load"].data.col(5).transpose().replicate(n_step, 1).cwiseProduct(scaling);
 
-    return PgmDataset{{"pgm_data", pgm_data}, {"pgm_update_data", {{"sym_load", sym_load_profile}}}};
+    // "update" "sym_load" are omitted
+    PgmData pgm_update_dataset = {{{"id", sym_load_profile_id},
+                                   {"p_specified", sym_load_profile_p_specified},
+                                   {"q_specified", sym_load_profile_q_specified}}};
+
+    return PgmDataset{{"pgm_data", pgm_data}, {"pgm_update_data", pgm_update_dataset}};
 }
 
 NAMESPACE_END
