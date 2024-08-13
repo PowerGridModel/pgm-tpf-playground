@@ -23,6 +23,8 @@ include(GNUInstallDirs)
 
 find_package(Eigen3 CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem graph) 
+   
+find_package(OpenMP REQUIRED)
 
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(INCLUDE_DIR ${SRC_DIR}/include)
@@ -32,7 +34,7 @@ file(GLOB_RECURSE SOURCES ${SRC_DIR}/main.cpp)
 include_directories(${INCLUDE_DIR})
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-target_link_libraries(${PROJECT_NAME} Eigen3::Eigen Boost::system Boost::filesystem Boost::graph)
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen Boost::system Boost::filesystem Boost::graph OpenMP::OpenMP_CXX)
 
 if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)

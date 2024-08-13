@@ -7,34 +7,30 @@
 
 #include <tpf.hpp>
 
-int main() {
-    auto const dataset = pgm_tpf_hackathon::generate_fictional_grid(3, 5, 0.1, 1.0, 1000, 500, 0.95, 10, 0.8, 1.2);
-    auto const pgm_data = dataset.at("pgm_data");
-    auto const update_data = dataset.at("pgm_update_data");
+#include <chrono>
 
-    // Accessing elements from pgm_data
-    try {
-        auto some_value = pgm_data.at("line");
-        std::cout << "Value: \n" << some_value << std::endl;
-    } catch (std::out_of_range const& e) {
-        std::cerr << "Key not found: " << e.what() << std::endl;
-    }
+// Example: PGM_TPF_Hackathon_2024.[exe] 3 5 0.1 1.0 1000 500 0.95 10 0.8 1.2
+int main(int argc, char* argv[]) {
+    auto const& options = pgm_tpf_hackathon::parse_experiment_options(argc, argv);
+    auto const& dataset = pgm_tpf_hackathon::generate_fictional_grid(options);
+    auto const& pgm_data = dataset.at("pgm_data");
+    auto const& update_data = dataset.at("pgm_update_data");
 
-    // Accessing elements from update_data
-    try {
-        auto another_value_id = update_data.at("id");
-        auto another_value_ps = update_data.at("p_specified");
-        auto another_value_qs = update_data.at("q_specified");
-        std::cout << "Value: \n" << another_value_id << std::endl;
-        std::cout << "Value: \n" << another_value_ps << std::endl;
-        std::cout << "Value: \n" << another_value_qs << std::endl;
-    } catch (std::out_of_range const& e) {
-        std::cerr << "Key not found: " << e.what() << std::endl;
-    }
+    print_pgm_dataset(dataset);
 
-    pgm_tpf_hackathon::TPF tpf{pgm_data, 50.0};
+    auto start_init = std::chrono::high_resolution_clock::now();
+    pgm_tpf_hackathon::TPF tpf{pgm_data, pgm_tpf_hackathon::frequency};
+    auto end_init = std::chrono::high_resolution_clock::now();
+    auto init_duration = std::chrono::duration_cast<std::chrono::microseconds>(end_init - start_init).count();
+    std::cout << "TPF initialization took " << init_duration << " us\n";
 
+    auto start_calc = std::chrono::high_resolution_clock::now();
     auto const result = tpf.calculate_power_flow(update_data);
+    auto end_calc = std::chrono::high_resolution_clock::now();
+    auto calc_duration = std::chrono::duration_cast<std::chrono::microseconds>(end_calc - start_calc).count();
+    std::cout << "TPF power flow calculation took " << calc_duration << " us\n";
+
+    print_tpf_result(result);
 
     return 0;
 }
