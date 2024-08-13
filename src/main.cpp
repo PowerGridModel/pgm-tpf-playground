@@ -14,7 +14,7 @@ int main() {
 
     // Accessing elements from pgm_data
     try {
-        auto some_value = pgm_data.at("source");
+        auto some_value = pgm_data.at("line");
         std::cout << "Value: \n" << some_value << std::endl;
     } catch (std::out_of_range const& e) {
         std::cerr << "Key not found: " << e.what() << std::endl;

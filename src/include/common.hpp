@@ -34,7 +34,7 @@ using Dict = std::unordered_map<std::string, Float>;
 using Int = int64_t;
 using Complex = std::complex<Float>;
 using VectorInt = std::vector<Int>;
-using VectorScalar = std::vector<Float>;
+using VectorReal = std::vector<Float>;
 using VectorComplex = std::vector<Complex>;
 using TensorComplex = std::vector<VectorComplex>;
 
