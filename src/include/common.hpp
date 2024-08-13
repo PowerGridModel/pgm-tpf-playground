@@ -34,16 +34,16 @@ using Dict = std::unordered_map<std::string, Float>;
 using Int = int64_t;
 using Complex = std::complex<Float>;
 using VectorInt = std::vector<Int>;
-using VectorScalar = std::vector<Float>;
+using VectorReal = std::vector<Float>;
 using VectorComplex = std::vector<Complex>;
 using TensorComplex = std::vector<VectorComplex>;
 
 using DenseMatInt = Eigen::Matrix<Int, Eigen::Dynamic, Eigen::Dynamic>;
-using DenseMatScalar = Eigen::Matrix<Float, Eigen::Dynamic, Eigen::Dynamic>;
+using DenseMatReal = Eigen::Matrix<Float, Eigen::Dynamic, Eigen::Dynamic>;
 using DenseMatComplex = Eigen::Matrix<Complex, Eigen::Dynamic, Eigen::Dynamic>;
 
 using SparseMatInt = Eigen::SparseMatrix<Int>;
-using SparseMatScalar = Eigen::SparseMatrix<Float>;
+using SparseMatReal = Eigen::SparseMatrix<Float>;
 using SparseMatComplex = Eigen::SparseMatrix<Complex>;
 
 constexpr Float NaN = std::numeric_limits<Float>::quiet_NaN();
@@ -90,6 +90,6 @@ using PgmData = std::unordered_map<std::string, PgmArray>;
 using PgmDataset = std::unordered_map<std::string, PgmData>;
 using PgmBatchData = PgmDataset;
 using PgmBatchDataset = std::unordered_map<std::string, std::vector<PgmBatchData>>;
-using PgmResultType = std::unordered_map<std::string, PgmData>;
+using PgmResultType = std::unordered_map<std::string, PgmDataset>;
 
 NAMESPACE_END

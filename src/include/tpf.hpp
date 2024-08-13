@@ -7,22 +7,36 @@
 #include "./common.hpp"
 #include "./utils.hpp"
 
+#include <omp.h>
+
 NAMESPACE_BEGIN
 
 // Minimal TPF impl
 
-void set_load_pu(VectorComplex& load_pu, VectorScalar const& p_array, VectorScalar const& q_array) {
-    std::transform(p_array.begin(), p_array.end(), q_array.begin(), load_pu.begin(),
-                   [](Float p, Float q) { return Complex(p, q) / BASE_POWER; });
+void set_load_pu(DenseMatComplex& load_pu, DenseMatReal const& p_matrix, DenseMatReal const& q_matrix) {
+    assert(p_matrix.rows() == q_matrix.rows() && p_matrix.cols() == q_matrix.cols());
+    load_pu.resize(p_matrix.rows(), p_matrix.cols());
+
+    Float const inv_base_power = 1.0 / BASE_POWER;
+
+#pragma omp parallel
+    for (int j = 0; j < p_matrix.cols(); ++j) {
+        for (int i = 0; i < p_matrix.rows(); ++i) {
+            load_pu(i, j) = Complex(p_matrix(i, j), q_matrix(i, j)) * inv_base_power;
+        }
+    }
 }
 
-VectorComplex get_load_pu(VectorScalar const& p_specified, VectorScalar const& q_specified) {
-    VectorComplex load_pu(p_specified.size());
+DenseMatComplex get_load_pu(PgmData const& update_data) {
+    DenseMatReal const p_specified = update_data.at("p_specified").data;
+    DenseMatReal const q_specified = update_data.at("q_specified").data;
+    DenseMatComplex load_pu(p_specified.rows(), p_specified.cols());
+
     set_load_pu(load_pu, p_specified, q_specified);
     return load_pu;
 }
 
-void set_rhs(SparseMatComplex& rhs, VectorComplex const& load_pu, VectorInt const& load_type,
+void set_rhs(SparseMatComplex& rhs, DenseMatComplex const& load_pu, VectorInt const& load_type,
              VectorInt const& load_node, SparseMatComplex const& u, Complex const& i_ref) {
     DenseMatComplex u_dense = u;
     DenseMatComplex rhs_dense = rhs;
@@ -33,20 +47,20 @@ void set_rhs(SparseMatComplex& rhs, VectorComplex const& load_pu, VectorInt cons
         Int type_i = load_type[i];
         switch (type_i) {
         case CONST_POWER:
-            for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
-                rhs_dense(j, node_i) -= std::conj(load_pu[i] / u_dense(j, node_i));
+            for (IDx j = 0; j < static_cast<IDx>(rhs.innerSize()); ++j) {
+                rhs_dense(j, node_i) -= std::conj(load_pu(j, i) / u_dense(j, node_i));
             }
             break;
 
         case CONST_CURRENT:
-            for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
-                rhs_dense(j, node_i) -= std::conj(load_pu[i] * std::abs(u_dense(j, node_i)) / u_dense(j, node_i));
+            for (IDx j = 0; j < static_cast<IDx>(rhs.innerSize()); ++j) {
+                rhs_dense(j, node_i) -= std::conj(load_pu(j, i) * std::abs(u_dense(j, node_i)) / u_dense(j, node_i));
             }
             break;
 
         case CONST_IMPEDANCE:
-            for (IDx j = 0; j < static_cast<IDx>(rhs.size()); ++j) {
-                rhs_dense(j, node_i) -= std::conj(load_pu[i]) * u_dense(j, node_i);
+            for (IDx j = 0; j < static_cast<IDx>(rhs.innerSize()); ++j) {
+                rhs_dense(j, node_i) -= std::conj(load_pu(j, i)) * u_dense(j, node_i);
             }
             break;
 
@@ -65,22 +79,52 @@ void set_rhs(SparseMatComplex& rhs, VectorComplex const& load_pu, VectorInt cons
 class TPF {
   public:
     TPF(PgmData const& input_data, Float const system_frequency)
-        : _input_data(input_data), _system_frequency(system_frequency) {
+        : _input_data(input_data), _system_frequency(system_frequency), _solver() {
         _n_node = static_cast<Int>(input_data.at("node").data.rows());
         _n_line = static_cast<Int>(input_data.at("line").data.rows());
         _node_org_to_reordered.resize(_n_node, -1);
+
+        _u_rated = input_data.at("node").data.col(1)[0];
+        assert(_u_rated != 0.0);
+        _y_base = BASE_POWER / (_u_rated * _u_rated);
+
+        auto retrieve_from_data = [](PgmData const& in_data, char const* component, Int col) {
+            auto const& data_col = in_data.at(component).data.col(col);
+            return VectorInt(data_col.data(), data_col.data() + data_col.size());
+        };
+
+        _line_node_from = retrieve_from_data(input_data, "line", 1);
+        _line_node_to = retrieve_from_data(input_data, "line", 2);
+        _load_node = retrieve_from_data(input_data, "sym_load", 1);
+        _load_type = retrieve_from_data(input_data, "sym_load", 3);
+
+        _source_node = static_cast<Int>(input_data.at("source").data(0, 1));
+
+        pre_cache_calculation();
     }
 
     ~TPF() = default;
+
+    void printDenseMat(DenseMatReal const& mat, std::string const& name) {
+        std::cout << name << ": \n[ " << std::endl;
+        for (int i = 0; i < mat.rows(); ++i) {
+            std::cout << "[ ";
+            for (int j = 0; j < mat.cols(); ++j) {
+                std::cout << mat(i, j) << " ";
+            }
+            std::cout << " ]" << std::endl;
+        }
+        std::cout << " ]" << std::endl;
+    }
 
     PgmResultType calculate_power_flow(PgmData const& update_data, Int max_iteration = 20,
                                        Float error_tolerance = 1e-8) {
         pre_cache_calculation();
 
-        Int n_steps = static_cast<Int>(update_data.at("sym_load").data.rows());
+        Int const n_steps = static_cast<Int>(update_data.at("p_specified").data.rows());
 
         // Initialize load_pu, u, and rhs
-        VectorComplex load_pu;
+        DenseMatComplex const load_pu = get_load_pu(update_data);
         DenseMatComplex u_dense(n_steps, _n_node);
         u_dense.setConstant(_u_ref);
         SparseMatComplex u = u_dense.sparseView();
@@ -104,8 +148,9 @@ class TPF {
         }
 
         // Reorder back to original
-        DenseMatScalar u_pu(n_steps, _n_node);
-        DenseMatScalar u_angle(n_steps, _n_node);
+        DenseMatReal u_pu(n_steps, _n_node);
+        DenseMatReal u_angle(n_steps, _n_node);
+#pragma omp parallel
         for (Int i = 0; i < n_steps; ++i) {
             for (Int j = 0; j < _n_node; ++j) {
                 Complex u_value = u.coeff(i, _node_org_to_reordered[j]);
@@ -114,10 +159,7 @@ class TPF {
             }
         }
 
-        PgmResultType result;
-        result.at("node").at("u_pu").data = u_pu;
-        result.at("node").at("u_angle").data = u_angle;
-        return result;
+        return produce_result(u_pu, u_angle);
     }
 
   private:
@@ -140,6 +182,7 @@ class TPF {
         Int size = static_cast<Int>(u_dense.cols());
         Float max_diff = 0.0;
 
+#pragma omp parallel
         for (Int i = 0; i < size; ++i) {
             for (Int j = 0; j < static_cast<Int>(u_dense.rows()); ++j) {
                 std::complex<double> diff = rhs_dense(j, i) - u_dense(j, i);
@@ -158,15 +201,16 @@ class TPF {
 
     // graph ordering ==============================================================
     void reorder_nodes(VectorInt const& reordered_node) {
-        if (static_cast<Int>(reordered_node.size()) != _n_node) {
+        auto const& reorder_nodes_size = static_cast<Int>(reordered_node.size());
+        if (reorder_nodes_size != _n_node) {
             throw std::invalid_argument("The graph is not connected!");
         }
         VectorInt reversed_node = reordered_node;
         std::reverse(reversed_node.begin(), reversed_node.end());
         _node_reordered_to_org = reversed_node;
         std::iota(_node_org_to_reordered.begin(), _node_org_to_reordered.end(), 0);
-        for (size_t i = 0; i < reordered_node.size(); ++i) {
-            _node_org_to_reordered[reordered_node[i]] = i;
+        for (Int i = 0; i < reorder_nodes_size; ++i) {
+            _node_org_to_reordered[reordered_node[i]] = reorder_nodes_size - 1 - i;
         }
         _line_node_from = reorder_vector(_line_node_from);
         _line_node_to = reorder_vector(_line_node_to);
@@ -244,6 +288,7 @@ class TPF {
         if (_solver.info() != Eigen::Success) {
             throw std::runtime_error("Matrix factorization failed!");
         }
+        _is_initialized = true;
     }
 
     void build_y_bus() {
@@ -315,7 +360,7 @@ class TPF {
         if (_y_bus.nonZeros() == 0) {
             build_y_bus();
         }
-        if (_solver.info() != Eigen::Success) {
+        if (!_is_initialized) {
             factorize_matrix();
         }
         // u variable, flat start as u_ref
@@ -324,12 +369,32 @@ class TPF {
         _i_ref = _y_base * _u_ref;
     }
 
+    PgmResultType produce_result(DenseMatReal const& u_pu, DenseMatReal const& u_angle) {
+        PgmData u_pu_data;
+        u_pu_data["value"].data = u_pu;
+
+        PgmData u_angle_data;
+        u_angle_data["value"].data = u_angle;
+
+        PgmDataset node_result;
+        node_result["u_pu"] = u_pu_data;
+        node_result["u_angle"] = u_angle_data;
+
+        PgmResultType result;
+        result["node"] = node_result;
+
+        return result;
+    }
+
     PgmData _input_data;
 
     Int _n_node;
     Int _n_line;
     Int _source_node;
 
+    bool _is_initialized = false;
+
+    Float _u_rated;
     Float _y_base;
     Float _system_frequency;
 
