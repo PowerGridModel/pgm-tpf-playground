@@ -11,12 +11,12 @@ NAMESPACE_BEGIN
 
 // Minimal TPF impl
 
-void set_load_pu(VectorComplex& load_pu, VectorScalar const& p_array, VectorScalar const& q_array) {
+void set_load_pu(VectorComplex& load_pu, VectorReal const& p_array, VectorReal const& q_array) {
     std::transform(p_array.begin(), p_array.end(), q_array.begin(), load_pu.begin(),
                    [](Float p, Float q) { return Complex(p, q) / BASE_POWER; });
 }
 
-VectorComplex get_load_pu(VectorScalar const& p_specified, VectorScalar const& q_specified) {
+VectorComplex get_load_pu(VectorReal const& p_specified, VectorReal const& q_specified) {
     VectorComplex load_pu(p_specified.size());
     set_load_pu(load_pu, p_specified, q_specified);
     return load_pu;
@@ -69,6 +69,22 @@ class TPF {
         _n_node = static_cast<Int>(input_data.at("node").data.rows());
         _n_line = static_cast<Int>(input_data.at("line").data.rows());
         _node_org_to_reordered.resize(_n_node, -1);
+
+        _u_rated = input_data.at("node").data.col(1)[0];
+        assert(_u_rated != 0.0);
+        _y_base = BASE_POWER / (_u_rated * _u_rated);
+
+        auto retrieve_from_data = [](PgmData const& in_data, char const* component, Int col) {
+            auto const& data_col = in_data.at(component).data.col(col);
+            return VectorInt(data_col.data(), data_col.data() + data_col.size());
+        };
+
+        _line_node_from = retrieve_from_data(input_data, "line", 1);
+        _line_node_to = retrieve_from_data(input_data, "line", 2);
+        _load_node = retrieve_from_data(input_data, "sym_load", 1);
+        _load_type = retrieve_from_data(input_data, "sym_load", 3);
+
+        _source_node = static_cast<Int>(input_data.at("source").data(0, 1));
     }
 
     ~TPF() = default;
@@ -330,6 +346,7 @@ class TPF {
     Int _n_line;
     Int _source_node;
 
+    Float _u_rated;
     Float _y_base;
     Float _system_frequency;
 

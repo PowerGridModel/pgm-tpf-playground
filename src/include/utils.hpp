@@ -67,18 +67,57 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
 
     // Line
     int n_line = n_node - 1;
-    Eigen::VectorXi to_node_feeder = Eigen::VectorXi::LinSpaced(n_node_per_feeder, 1, n_node_per_feeder);
-    to_node_feeder = to_node_feeder.replicate(n_feeder, 1).eval().reshaped();
-    Eigen::VectorXi from_node_feeder = Eigen::VectorXi::LinSpaced(n_node_per_feeder - 1, 1, n_node_per_feeder - 1);
-    from_node_feeder = from_node_feeder.replicate(n_feeder, 1).eval().reshaped();
-    from_node_feeder.conservativeResize(n_feeder * n_node_per_feeder);
-    from_node_feeder.head(n_feeder).setZero();
+
+    auto to_node_raw = [&n_node_per_feeder, &n_feeder]() {
+        VectorInt to_node_feeder(n_node_per_feeder);
+        std::iota(to_node_feeder.begin(), to_node_feeder.end(), 1);
+
+        std::vector<VectorInt> reshaped_to_node_feeder(n_feeder, VectorInt(n_node_per_feeder));
+        for (int i = 0; i < n_feeder; ++i) {
+            for (int j = 0; j < n_node_per_feeder; ++j) {
+                reshaped_to_node_feeder[i][j] = to_node_feeder[j] + i * n_node_per_feeder;
+            }
+        }
+
+        VectorReal to_nodes;
+        for (const auto& feeder : reshaped_to_node_feeder) {
+            to_nodes.insert(to_nodes.end(), feeder.begin(), feeder.end());
+        }
+
+        return to_nodes;
+    }();
+    Eigen::VectorXd to_node = Eigen::Map<Eigen::VectorXd>(to_node_raw.data(), to_node_raw.size());
+
+    auto from_node_raw = [&n_node_per_feeder, &n_feeder]() {
+        VectorInt from_node_feeder(n_node_per_feeder - 1);
+        std::iota(from_node_feeder.begin(), from_node_feeder.end(), 1);
+
+        std::vector<VectorInt> reshaped_from_node_feeder(n_feeder, VectorInt(n_node_per_feeder - 1));
+        for (int i = 0; i < n_feeder; ++i) {
+            for (int j = 0; j < n_node_per_feeder - 1; ++j) {
+                reshaped_from_node_feeder[i][j] = from_node_feeder[j] + i * n_node_per_feeder;
+            }
+        }
+
+        for (int i = 0; i < n_feeder; ++i) {
+            reshaped_from_node_feeder[i].insert(reshaped_from_node_feeder[i].begin(), 0);
+        }
+
+        VectorReal from_nodes;
+        for (auto const& feeder : reshaped_from_node_feeder) {
+            from_nodes.insert(from_nodes.end(), feeder.begin(), feeder.end());
+        }
+
+        return from_nodes;
+    }();
+    Eigen::VectorXd from_node = Eigen::Map<Eigen::VectorXd>(from_node_raw.data(), from_node_raw.size());
+
     Eigen::VectorXd length = Eigen::VectorXd::NullaryExpr(n_line, [&]() { return dist_length(rng); });
 
     pgm_data["line"] = initialize_array(n_line, 12);
     pgm_data["line"].data.col(0) = Eigen::VectorXd::LinSpaced(n_line, n_node, n_node + n_line - 1);
-    pgm_data["line"].data.col(1) = from_node_feeder.cast<Float>();
-    pgm_data["line"].data.col(2) = to_node_feeder.cast<Float>();
+    pgm_data["line"].data.col(1) = from_node;
+    pgm_data["line"].data.col(2) = to_node;
     pgm_data["line"].data.col(3).setConstant(1);
     pgm_data["line"].data.col(4).setConstant(1);
 
@@ -96,7 +135,7 @@ PgmDataset generate_fictional_grid(int n_feeder, int n_node_per_feeder, Float ca
     pgm_data["sym_load"].data.col(0) =
         Eigen::VectorXd::LinSpaced(n_load, n_node + n_line, n_node + n_line + n_load - 1);
     pgm_data["sym_load"].data.col(1) = pgm_data["node"].data.col(0).tail(n_load);
-    pgm_data["sym_load"].data.col(2).setConstant(1);
+    pgm_data["sym_load"].data.col(2).setConstant(1); // status
     pgm_data["sym_load"].data.col(3).setConstant(1); // Assuming const_power type
     pgm_data["sym_load"].data.col(4) = Eigen::VectorXd::NullaryExpr(n_load, [&]() { return dist_load(rng); });
     pgm_data["sym_load"].data.col(5) =
