@@ -55,6 +55,7 @@ struct ExperimentOptions {
     Float load_scaling_min;
     Float load_scaling_max;
     int seed = 0;
+    bool print_res = false;
 };
 
 void print_usage() {
@@ -86,6 +87,9 @@ ExperimentOptions parse_experiment_options(int argc, char* argv[]) {
 
         if (argc > 11) {
             options.seed = std::stoi(argv[11]);
+        }
+        if (argc > 12) {
+            options.print_res = std::stoi(argv[12]) != 0;
         }
     } catch (const std::exception& e) {
         print_usage();
@@ -235,7 +239,10 @@ PgmDataset generate_fictional_grid(ExperimentOptions const& options) {
     return PgmDataset{{"pgm_data", pgm_data}, {"pgm_update_data", pgm_update_dataset}};
 }
 
-void print_pgm_dataset(PgmDataset const& pgm_data_set) {
+void print_pgm_dataset(PgmDataset const& pgm_data_set, bool print_data) {
+    if (!print_data) {
+        return;
+    }
     auto const pgm_data = pgm_data_set.at("pgm_data");
     auto const update_data = pgm_data_set.at("pgm_update_data");
 
@@ -260,7 +267,10 @@ void print_pgm_dataset(PgmDataset const& pgm_data_set) {
     }
 }
 
-void print_tpf_result(PgmResultType const& result) {
+void print_tpf_result(PgmResultType const& result, bool print_result) {
+    if (!print_result) {
+        return;
+    }
     auto const& u_pu_data = result.at("node").at("u_pu").at("value").data;
     auto const& u_angle_data = result.at("node").at("u_angle").at("value").data;
 

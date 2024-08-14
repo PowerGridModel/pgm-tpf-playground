@@ -19,7 +19,7 @@ void set_load_pu(DenseMatComplex& load_pu, DenseMatReal const& p_matrix, DenseMa
 
     Float const inv_base_power = 1.0 / BASE_POWER;
 
-#pragma omp parallel
+#pragma omp parallel for
     for (int j = 0; j < p_matrix.cols(); ++j) {
         for (int i = 0; i < p_matrix.rows(); ++i) {
             load_pu(i, j) = Complex(p_matrix(i, j), q_matrix(i, j)) * inv_base_power;
@@ -150,7 +150,7 @@ class TPF {
         // Reorder back to original
         DenseMatReal u_pu(n_steps, _n_node);
         DenseMatReal u_angle(n_steps, _n_node);
-#pragma omp parallel
+#pragma omp parallel for
         for (Int i = 0; i < n_steps; ++i) {
             for (Int j = 0; j < _n_node; ++j) {
                 Complex u_value = u.coeff(i, _node_org_to_reordered[j]);
@@ -182,7 +182,7 @@ class TPF {
         Int size = static_cast<Int>(u_dense.cols());
         Float max_diff = 0.0;
 
-#pragma omp parallel
+#pragma omp parallel for
         for (Int i = 0; i < size; ++i) {
             for (Int j = 0; j < static_cast<Int>(u_dense.rows()); ++j) {
                 std::complex<double> diff = rhs_dense(j, i) - u_dense(j, i);
