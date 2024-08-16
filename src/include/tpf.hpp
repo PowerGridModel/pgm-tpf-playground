@@ -103,7 +103,7 @@ class TPF {
         pre_cache_calculation();
     }
 
-    ~TPF() = default;
+    ~TPF(){};
 
     void printDenseMat(DenseMatReal const& mat, std::string const& name) {
         std::cout << name << ": \n[ " << std::endl;
@@ -134,16 +134,16 @@ class TPF {
         for (Int iter = 0; iter < max_iteration; ++iter) {
             set_rhs(rhs, load_pu, _load_type, _load_node, u, _i_ref);
             solve_rhs_inplace(rhs);
-            Float max_diff = iterate_and_compare(u, rhs);
+            Float max_diffs = iterate_and_compare(u, rhs);
 
             // Early out, 'converged'
-            if (max_diff < error_tolerance * error_tolerance) {
+            if (max_diffs < error_tolerance * error_tolerance) {
                 break;
             }
 
             if (iter == max_iteration - 1) {
                 throw std::runtime_error("The power flow calculation does not converge! Max diff: " +
-                                         std::to_string(max_diff));
+                                         std::to_string(max_diffs));
             }
         }
 
@@ -181,12 +181,11 @@ class TPF {
 
         Int size = static_cast<Int>(u_dense.cols());
         Float max_diff = 0.0;
-
 #pragma omp parallel for
         for (Int i = 0; i < size; ++i) {
             for (Int j = 0; j < static_cast<Int>(u_dense.rows()); ++j) {
                 std::complex<double> diff = rhs_dense(j, i) - u_dense(j, i);
-                Float diff_val = std::norm(diff); // should have been squared norm
+                Float diff_val = std::norm(diff);
                 if (diff_val > max_diff) {
                     max_diff = diff_val;
                 }
@@ -277,7 +276,7 @@ class TPF {
         reorder_nodes(reordered_node);
     }
 
-    // matrix factorizatio and construction =======================================
+    // matrix factorization and construction =======================================
     void factorize_matrix() {
         SparseMatComplex y_matrix(_y_bus);
         y_matrix.makeCompressed();

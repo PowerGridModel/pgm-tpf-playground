@@ -8,9 +8,6 @@
         "generator": "Ninja",
         "binaryDir": "${sourceDir}/cpp_build/${presetName}",
         "installDir": "${sourceDir}/install/${presetName}",
-        "cacheVariables": {
-          "PGM_ENABLE_DEV_BUILD": "ON"
-        },
         "environment": {
           "PLATFORM_C_FLAGS": "",
           "PLATFORM_CXX_FLAGS": "$env{PLATFORM_C_FLAGS}",
@@ -29,7 +26,7 @@
       {
         "name": "release",
         "cacheVariables": {
-          "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+          "CMAKE_BUILD_TYPE": "MinSizeRelease"
         },
         "hidden": true
       },

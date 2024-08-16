@@ -44,25 +44,25 @@ Dict const cable_param_pp = {{"c_nf_per_km", cable_param.at("c1") * 1e9},
                              {"max_i_ka", cable_param.at("i_n") * 1e-3}};
 
 struct ExperimentOptions {
-    int n_feeder;
-    int n_node_per_feeder;
-    Float cable_length_km_min;
-    Float cable_length_km_max;
-    Float load_p_w_max;
-    Float load_p_w_min;
-    Float pf;
-    int n_step;
-    Float load_scaling_min;
-    Float load_scaling_max;
-    int seed = 0;
-    bool print_res = false;
+    int n_feeder{3};
+    int n_node_per_feeder{5};
+    Float cable_length_km_min{0.1};
+    Float cable_length_km_max{1.0};
+    Float load_p_w_max{1000.0};
+    Float load_p_w_min{500.0};
+    Float pf{0.95};
+    int n_step{10};
+    Float load_scaling_min{0.8};
+    Float load_scaling_max{1.2};
+    int seed{0};
+    bool print_res{false};
 };
 
 void print_usage() {
     std::cout
-        << "Usage: PGM_TPF_Hackathon_2024.[exe] n_feeder n_node_per_feeder cable_length_km_min cable_length_km_max "
+        << "Usage: PGM_TPF_Hackathon_2024.[exe/o] n_feeder n_node_per_feeder cable_length_km_min cable_length_km_max "
         << "load_p_w_max load_p_w_min pf n_step load_scaling_min load_scaling_max [seed] [print_result]\n";
-    std::cout << "Example: PGM_TPF_Hackathon_2024.[exe] 3 5 0.1 1.0 1000 500 0.95 10 0.8 1.2 \n";
+    std::cout << "Default: PGM_TPF_Hackathon_2024.[exe/o] 3 5 0.1 1.0 1000.0 500.0 0.95 10 0.8 1.2 0 0\n";
 }
 
 ExperimentOptions parse_experiment_options(int argc, char* argv[]) {
@@ -70,7 +70,8 @@ ExperimentOptions parse_experiment_options(int argc, char* argv[]) {
 
     if (argc < 10) {
         print_usage();
-        throw std::invalid_argument("Insufficient arguments provided.");
+        std::cout << "Insufficient amount of parameters provided. Using default values.\n";
+        return options;
     }
 
     try {
@@ -93,7 +94,7 @@ ExperimentOptions parse_experiment_options(int argc, char* argv[]) {
         }
     } catch (const std::exception& e) {
         print_usage();
-        throw std::invalid_argument("Invalid argument provided: " + std::string(e.what()));
+        throw std::invalid_argument("[Nice reminder] Invalid argument provided: " + std::string(e.what()));
     }
 
     return options;

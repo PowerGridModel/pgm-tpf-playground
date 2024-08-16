@@ -37,7 +37,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} Eigen3::Eigen Boost::system Boost::filesystem Boost::graph OpenMP::OpenMP_CXX)
 
 if (MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
+    target_compile_options(${PROJECT_NAME} PRIVATE /GL /W4 /WX /openmp)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
