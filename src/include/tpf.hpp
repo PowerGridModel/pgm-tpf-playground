@@ -150,7 +150,7 @@ class TPF {
         // Reorder back to original
         DenseMatReal u_pu(n_steps, _n_node);
         DenseMatReal u_angle(n_steps, _n_node);
-#pragma omp parallel for
+//#pragma omp parallel for
         for (Int i = 0; i < n_steps; ++i) {
             for (Int j = 0; j < _n_node; ++j) {
                 Complex u_value = u.coeff(i, _node_org_to_reordered[j]);
