@@ -60,9 +60,9 @@ struct ExperimentOptions {
 
 void print_usage() {
     std::cout
-        << "Usage: PGM_TPF_Hackathon_2024.[exe/o] n_feeder n_node_per_feeder cable_length_km_min cable_length_km_max "
+        << "Usage: PGM_TPF_Playground.[exe/o] n_feeder n_node_per_feeder cable_length_km_min cable_length_km_max "
         << "load_p_w_max load_p_w_min pf n_step load_scaling_min load_scaling_max [seed] [print_result]\n";
-    std::cout << "Default: PGM_TPF_Hackathon_2024.[exe/o] 3 5 0.1 1.0 1000.0 500.0 0.95 10 0.8 1.2 0 0\n";
+    std::cout << "Default: PGM_TPF_Playground.[exe/o] 3 5 0.1 1.0 1000.0 500.0 0.95 10 0.8 1.2 0 0\n";
 }
 
 ExperimentOptions parse_experiment_options(int argc, char* argv[]) {

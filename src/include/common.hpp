@@ -24,7 +24,7 @@
 #include <unordered_map>
 #include <vector>
 
-#define NAMESPACE_BEGIN namespace pgm_tpf_hackathon {
+#define NAMESPACE_BEGIN namespace pgm_tpf_playground {
 #define NAMESPACE_END }
 
 NAMESPACE_BEGIN

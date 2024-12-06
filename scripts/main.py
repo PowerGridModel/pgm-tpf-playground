@@ -10,8 +10,8 @@ import sys
 from tqdm import tqdm
 
 '''
-Usage: PGM_TPF_Hackathon_2024.[exe/o] n_feeder n_node_per_feeder cable_length_km_min cable_length_km_max load_p_w_max load_p_w_min pf n_step load_scaling_min load_scaling_max [seed] [print_result]
-Default: PGM_TPF_Hackathon_2024.[exe/o] 3 5 0.1 1.0 1000.0 500.0 0.95 10 0.8 1.2 0 0
+Usage: PGM_TPF_Playground.[exe/o] n_feeder n_node_per_feeder cable_length_km_min cable_length_km_max load_p_w_max load_p_w_min pf n_step load_scaling_min load_scaling_max [seed] [print_result]
+Default: PGM_TPF_Playground.[exe/o] 3 5 0.1 1.0 1000.0 500.0 0.95 10 0.8 1.2 0 0
 Output:
 TPF initialization took 1000 us
 TPF power flow calculation took 2000 us
